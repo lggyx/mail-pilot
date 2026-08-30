@@ -20,6 +20,7 @@ __pycache__/
 node_modules/
 frontend/dist/
 .vite/
+*.tsbuildinfo
 
 # 系统/编辑器
 .DS_Store
