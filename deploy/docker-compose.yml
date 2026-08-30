@@ -1,0 +1,43 @@
+# mail-pilot 生产部署：app（FastAPI 单进程 + SQLite）+ Caddy（自动 HTTPS）
+# 用法：见 deploy/DEPLOY.md
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: mail-pilot-app
+    env_file: .env.server
+    environment:
+      # 容器内固定路径（.env.server 中不要覆盖这两项）
+      DATA_DIR: /app/data
+      STATIC_DIR: /app/frontend-dist
+    volumes:
+      - app-data:/app/data          # SQLite 与附件，备份这个卷即可
+    expose:
+      - "8000"
+    restart: unless-stopped
+    # 2 核 2G 服务器资源上限（可按需调整）
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  caddy:
+    image: caddy:2
+    container_name: mail-pilot-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:

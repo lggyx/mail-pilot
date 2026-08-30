@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* 设计 tokens：抓取自 lggyx.vercel.app 的暗色设计语言
+   —— 近黑底 + 深灰卡片 + 白色透明度描边 + 暖琥珀强调 + 克制圆角与缓动 */
+@theme {
+  --color-ink: #0a0a0a;
+  --color-card: #161616;
+  --color-card2: #1d1d1d;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line2: rgba(255, 255, 255, 0.14);
+  --color-fog: #8a8a8a;        /* 次级文字 */
+  --color-accent: #ffb066;     /* 暖琥珀 */
+  --color-accent-soft: #ffebc8;
+  --color-ok: #34d399;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+  --color-info: #7dd3fc;
+
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html { color-scheme: dark; }
+
+body {
+  @apply bg-ink text-neutral-200 font-sans antialiased;
+  background-image:
+    radial-gradient(1200px 500px at 80% -10%, rgba(255, 176, 102, 0.05), transparent 60%),
+    radial-gradient(900px 400px at -10% 110%, rgba(125, 211, 252, 0.04), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* 入场动效（克制：fade + slide 12px，React Bits 思路的轻量实现） */
+@keyframes fade-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-slide-in 0.35s var(--ease-smooth) both; }
+.fade-in-1 { animation-delay: 0.04s; }
+.fade-in-2 { animation-delay: 0.08s; }
+.fade-in-3 { animation-delay: 0.12s; }
+.fade-in-4 { animation-delay: 0.16s; }
+
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.skeleton {
+  @apply rounded bg-white/5 relative overflow-hidden;
+  background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  background-repeat: no-repeat;
+  background-size: 200px 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* 卡片 hover 微抬 */
+.card-hover { transition: transform 0.2s var(--ease-smooth), border-color 0.2s, background-color 0.2s; }
+.card-hover:hover { transform: translateY(-2px); border-color: var(--color-line2); }
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* TipTap 编辑区 */
+.tiptap { outline: none; min-height: 240px; }
+.tiptap p { margin: 0.5em 0; }
+.tiptap h3 { font-size: 1.15em; font-weight: 600; margin: 0.8em 0 0.4em; color: #fff; }
+.tiptap ul { list-style: disc; padding-left: 1.4em; }
+.tiptap ol { list-style: decimal; padding-left: 1.4em; }
+.tiptap blockquote { border-left: 3px solid var(--color-line2); padding-left: 0.8em; color: var(--color-fog); }
+.tiptap a { color: var(--color-accent); text-decoration: underline; }
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); color: var(--color-fog); float: left; height: 0; pointer-events: none;
+}
+
+/* 邮件 HTML 预览容器内的基础样式 */
+.mail-preview a { color: var(--color-accent); }
+.mail-preview img { max-width: 100%; }

@@ -1,0 +1,19 @@
+# Caddyfile 样例：把 mail.example.com 换成你的域名（DNS A 记录指向服务器）
+# Caddy 自动申请/续期 Let's Encrypt 证书，强制 HTTPS
+mail.example.com {
+	encode gzip zstd
+
+	# 传给后端真实客户端 IP
+	reverse_proxy app:8000 {
+		header_up X-Real-IP {remote_host}
+	}
+
+	# 基础安全头
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
