@@ -1,0 +1,30 @@
+# 环境与凭据（绝不入库）
+.env
+.env.server
+*.key
+
+# 数据（SQLite / 附件 / 日志）
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+uv.lock
+
+# 前端
+node_modules/
+frontend/dist/
+.vite/
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
