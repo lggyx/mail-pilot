@@ -623,6 +623,8 @@ function doImport() {
   }
 
   // Show preview modal
+  state._importPreview = preview;
+  state._importSkipped = skipped;
   document.getElementById('modal-content').innerHTML = `
     <div class="modal-title">导入预览（${preview.length} 条待导入，${skipped.length} 条将被跳过）</div>
     <div style="max-height:300px;overflow-y:auto;margin-bottom:12px;">
@@ -649,14 +651,13 @@ function doImport() {
     ${skipped.length ? `<div class="boundary" style="margin-bottom:12px;"><div class="boundary-title">跳过明细</div>${skipped.map(s => s.raw + ' → ' + s.reason).join('<br/>')}</div>` : ''}
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">取消</button>
-      <button class="btn primary" onclick="confirmImport(${JSON.stringify(preview).replace(/"/g,'&quot;')})">确认导入</button>
+      <button class="btn primary" onclick="confirmImport()">确认导入</button>
     </div>
   `;
 }
 
-function confirmImport(previewJson) {
-  let preview;
-  try { preview = JSON.parse(previewJson); } catch(e) { showToast('导入失败', 'red'); return; }
+function confirmImport() {
+  const preview = state._importPreview || [];
   preview.forEach((p, i) => {
     state.contacts.push({
       id: Date.now() + i, name: p.name, email: p.email, status: 'active',
@@ -664,6 +665,8 @@ function confirmImport(previewJson) {
     });
   });
   showToast(`导入完成：新增 ${preview.length} 位联系人`, 'green');
+  delete state._importPreview;
+  delete state._importSkipped;
   closeModal();
   if (state.currentPage === 'contacts') render();
 }
