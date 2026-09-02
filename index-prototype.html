@@ -471,9 +471,49 @@ function toggleAllContacts(cb) {
 }
 function batchAction(action) {
   if (state.selectedContactIds.size === 0) { showToast('请先选择联系人', 'yellow'); return; }
+  if (action === 'tag') { showCreateTagModal(); return; }
   showToast(`已对 ${state.selectedContactIds.size} 个联系人执行"${action}"`, 'blue');
   state.selectedContactIds.clear();
   render();
+}
+
+function showCreateTagModal() {
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">新建标签</div>
+    <div class="form-group">
+      <label>标签名称</label>
+      <input class="form-input" id="new-tag-name" placeholder="例如：VIP客户" />
+    </div>
+    <div class="form-group">
+      <label>颜色</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${['#58a6ff','#4ade80','#ff4d4d','#a78bfa','#facc15','#22d3ee','#ffb066','#f472b6'].map(c => `
+          <span style="width:28px;height:28px;border-radius:4px;background:${c};cursor:pointer;border:2px solid transparent;" 
+                onclick="selectTagColor(this,'${c}')"></span>
+        `).join('')}
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="createTag()">创建</button>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+let selectedTagColor = '#58a6ff';
+function selectTagColor(el, color) {
+  selectedTagColor = color;
+  el.parentElement.querySelectorAll('span').forEach(s => s.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--text)';
+}
+
+function createTag() {
+  const name = document.getElementById('new-tag-name')?.value?.trim();
+  if (!name) { showToast('请输入标签名称', 'yellow'); return; }
+  showToast(`标签"${name}"已创建`, 'green');
+  closeModal();
+  // In real app: add to tags table, refresh tag list
 }
 
 function showContactDetail(id) {
@@ -523,6 +563,22 @@ function openImportModal() {
         <textarea class="form-input" rows="6" id="import-paste-text" style="font-family:monospace;font-size:12px;"></textarea>
       </div>
     </div>
+    <div class="form-group" style="margin-top:12px;">
+      <label>字段映射</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+        <div><span style="color:var(--muted);font-size:12px;">姓名列</span><input class="form-input" id="import-col-name" value="name" /></div>
+        <div><span style="color:var(--muted);font-size:12px;">邮箱列</span><input class="form-input" id="import-col-email" value="email" /></div>
+        <div><span style="color:var(--muted);font-size:12px;">标签列（可选）</span><input class="form-input" id="import-col-tags" value="tags" /></div>
+        <div><span style="color:var(--muted);font-size:12px;">其他字段</span><input class="form-input" id="import-col-extra" value="" placeholder="phone,company..." /></div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:8px;">
+      <label>默认标签（导入后自动打标）</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+        ${['订阅用户','活动','客户'].map(t => `<span class="tag blue" style="cursor:pointer;" onclick="this.classList.toggle('green')">${t}</span>`).join('')}
+        <span class="tag" style="cursor:pointer;color:var(--accent);" onclick="showCreateTagModal()">+ 新建标签</span>
+      </div>
+    </div>
     <div class="boundary blue">
       <div class="boundary-title">自动排除</div>
       退订（unsubscribed）/ 退信（bounced）/ 被标垃圾（complained）地址自动求差，被排除的地址有记录可查。
@@ -546,17 +602,68 @@ function doImport() {
   const pasteText = document.getElementById('import-paste-text')?.value || '';
   const lines = pasteText.split('\n').filter(l => l.trim()).map(l => l.trim());
   if (lines.length === 0) { showToast('请输入至少一个邮箱', 'yellow'); return; }
-  // Simulate import with exclusions
-  const excluded = ['wangwu@example.com']; // unsubscribed/bounced
-  const added = lines.filter(l => !excluded.includes(l) && !state.contacts.some(c => c.email === l));
-  const skipped = lines.filter(l => excluded.includes(l) || state.contacts.some(c => c.email === l));
-  showToast(`导入完成：新增 ${added.length}，跳过 ${skipped.length}`, 'green');
-  added.forEach((email, i) => {
+
+  // Collect field mapping
+  const colName = document.getElementById('import-col-name')?.value || 'name';
+  const colEmail = document.getElementById('import-col-email')?.value || 'email';
+  const colTags = document.getElementById('import-col-tags')?.value || 'tags';
+  const defaultTags = Array.from(document.querySelectorAll('#modal-content .tag.green')).map(el => el.textContent.trim());
+
+  const excluded = ['wangwu@example.com'];
+  const added = [];
+  const skipped = [];
+  const preview = [];
+  for (const raw of lines) {
+    const email = raw.includes('@') ? raw.split(/[,\t]/)[0].trim() : raw;
+    if (!email || !email.includes('@')) { skipped.push({ raw, reason: '格式无效' }); continue; }
+    if (excluded.includes(email)) { skipped.push({ raw, reason: '退订/退信' }); continue; }
+    if (state.contacts.some(c => c.email === email)) { skipped.push({ raw, reason: '重复' }); continue; }
+    const name = raw.includes('@') ? raw.split(/[,\t]/)[0].trim().split('@')[0] : raw;
+    preview.push({ name, email, tags: defaultTags.length ? [...defaultTags] : ['导入'] });
+  }
+
+  // Show preview modal
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">导入预览（${preview.length} 条待导入，${skipped.length} 条将被跳过）</div>
+    <div style="max-height:300px;overflow-y:auto;margin-bottom:12px;">
+      <table>
+        <tr><th>姓名</th><th>邮箱</th><th>标签</th><th>状态</th></tr>
+        ${preview.map(p => `
+          <tr>
+            <td>${p.name}</td>
+            <td>${p.email}</td>
+            <td>${p.tags.map(t => `<span class="tag blue">${t}</span>`).join(' ')}</td>
+            <td><span class="tag green">待导入</span></td>
+          </tr>
+        `).join('')}
+        ${skipped.map(s => `
+          <tr>
+            <td>${s.raw}</td>
+            <td>-</td>
+            <td>-</td>
+            <td><span class="tag red">跳过：${s.reason}</span></td>
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+    ${skipped.length ? `<div class="boundary" style="margin-bottom:12px;"><div class="boundary-title">跳过明细</div>${skipped.map(s => s.raw + ' → ' + s.reason).join('<br/>')}</div>` : ''}
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="confirmImport(${JSON.stringify(preview).replace(/"/g,'&quot;')})">确认导入</button>
+    </div>
+  `;
+}
+
+function confirmImport(previewJson) {
+  let preview;
+  try { preview = JSON.parse(previewJson); } catch(e) { showToast('导入失败', 'red'); return; }
+  preview.forEach((p, i) => {
     state.contacts.push({
-      id: Date.now() + i, name: email.split('@')[0], email, status: 'active',
-      tags: ['导入'], lastEmailAt: null
+      id: Date.now() + i, name: p.name, email: p.email, status: 'active',
+      tags: p.tags, lastEmailAt: null
     });
   });
+  showToast(`导入完成：新增 ${preview.length} 位联系人`, 'green');
   closeModal();
   if (state.currentPage === 'contacts') render();
 }
@@ -892,6 +999,32 @@ function renderCampaignWizard() {
           ${state.templates.map(t => `<option value="${t.id}">${t.name}（${t.subject}）</option>`).join('')}
         </select>
       </div>
+      <div class="form-group">
+        <label>发送人群</label>
+        <div class="tabs" style="margin-bottom:8px;">
+          <div class="tab active" onclick="switchAudienceTab(this,'all')">全部活跃联系人</div>
+          <div class="tab" onclick="switchAudienceTab(this,'tag')">按标签筛选</div>
+          <div class="tab" onclick="switchAudienceTab(this,'pick')">手动选择</div>
+        </div>
+        <div id="audience-all">
+          <div style="font-size:13px;color:var(--muted);">将发送给所有状态为 active 的联系人（共 <strong>${state.contacts.filter(x=>x.status==='active').length}</strong> 人）</div>
+        </div>
+        <div id="audience-tag" class="hidden">
+          <select class="form-input" id="audience-tag-select">
+            <option value="">-- 选择标签 --</option>
+            ${Array.from(new Set(state.contacts.flatMap(c => c.tags))).map(t => `<option value="${t}">${t}（${state.contacts.filter(c=>c.tags.includes(t)).length} 人）</option>`).join('')}
+          </select>
+        </div>
+        <div id="audience-pick" class="hidden">
+          <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;">
+            ${state.contacts.filter(x=>x.status==='active').map(ct => `
+              <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer;">
+                <input type="checkbox" class="checkbox" value="${ct.id}" /> ${ct.name} &lt;${ct.email}&gt;
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn" onclick="closeModal()">取消</button>
         <button class="btn primary" onclick="state.campaignStep=2;renderCampaignWizard();">下一步</button>
@@ -906,12 +1039,37 @@ function renderCampaignWizard() {
         <div class="boundary-title">将被排除</div>
         2 人（退订/退信/重复地址）
       </div>
+      <div class="card" style="margin-top:12px;background:var(--bg);border:1px dashed var(--border);">
+        <div class="card-title">发送名单预览</div>
+        <div style="max-height:200px;overflow-y:auto;font-size:13px;">
+          <table>
+            <tr><th>姓名</th><th>邮箱</th><th>标签</th><th>状态</th></tr>
+            ${state.contacts.filter(x=>x.status==='active').slice(0, 10).map(ct => `
+              <tr>
+                <td>${ct.name}</td>
+                <td>${ct.email}</td>
+                <td>${ct.tags.map(t => `<span class="tag blue">${t}</span>`).join(' ')}</td>
+                <td><span class="tag green">active</span></td>
+              </tr>
+            `).join('')}
+          </table>
+          ${state.contacts.filter(x=>x.status==='active').length > 10 ? `<div style="color:var(--muted);font-size:12px;padding:8px;">……还有 ${state.contacts.filter(x=>x.status==='active').length - 10} 人</div>` : ''}
+        </div>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
         <button class="btn" onclick="state.campaignStep=1;renderCampaignWizard();">返回</button>
         <button class="btn primary" onclick="createCampaign()">确认创建</button>
       </div>
     `}
   `;
+}
+
+function switchAudienceTab(tabEl, mode) {
+  tabEl.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  document.getElementById('audience-all').classList.toggle('hidden', mode !== 'all');
+  document.getElementById('audience-tag').classList.toggle('hidden', mode !== 'tag');
+  document.getElementById('audience-pick').classList.toggle('hidden', mode !== 'pick');
 }
 
 function createCampaign() {
