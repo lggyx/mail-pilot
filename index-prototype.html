@@ -348,7 +348,8 @@ function render() {
 }
 
 // ==================== LOGIN ====================
-function doLogin() {
+function doLogin(event) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
   const u = document.getElementById('login-user').value;
   const p = document.getElementById('login-pass').value;
   if (u === 'admin' && p === 'admin') {
@@ -356,8 +357,7 @@ function doLogin() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').classList.add('active');
     document.getElementById('user-display').textContent = u;
-    navigate('dashboard');
-    showToast('登录成功', 'green');
+    setTimeout(() => { navigate('dashboard'); showToast('登录成功', 'green'); }, 0);
   } else {
     showToast('用户名或密码错误', 'red');
   }
