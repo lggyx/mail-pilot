@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>mail-pilot · 可交互原型</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --panel: #111111; --panel2: #161616; --border: #262626;
+    --text: #f0f0f0; --muted: #888; --accent: #ffb066; --accent2: #ff8c42;
+    --red: #ff4d4d; --green: #4ade80; --blue: #58a6ff; --purple: #a78bfa;
+    --yellow: #facc15; --cyan: #22d3ee;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.6; padding: 0; overflow: hidden; height: 100vh;
+  }
+
+  /* Login */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center; height: 100vh;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  }
+  .login-box {
+    width: 360px; padding: 40px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .login-box h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .login-box p { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  .form-input {
+    width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 14px; outline: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover { background: #1f1f1f; }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { background: var(--accent2); }
+  .btn.danger { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 4px 10px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* App Layout */
+  #app { display: none; height: 100vh; }
+  #app.active { display: flex; }
+  .sidebar {
+    width: 240px; background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo {
+    width: 28px; height: 28px; background: var(--accent); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: #000; font-size: 14px;
+  }
+  .sidebar-header span { font-weight: 700; font-size: 15px; }
+  .nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+  .nav-section {
+    padding: 12px 20px 4px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1px; color: #555; font-weight: 700;
+  }
+  .nav-item {
+    padding: 9px 20px; font-size: 13px; cursor: pointer;
+    border-left: 3px solid transparent; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .nav-item:hover { color: var(--text); background: #1a1a1a; }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: #1a1a1a; font-weight: 600; }
+  .nav-item .icon { width: 16px; text-align: center; font-size: 12px; }
+  .sidebar-footer {
+    padding: 12px 20px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center;
+  }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    height: 56px; border-bottom: 1px solid var(--border); background: var(--panel);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0;
+  }
+  .topbar-title { font-size: 16px; font-weight: 700; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* Cards & Grid */
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px;
+  }
+  .card-title { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .stat-num { font-size: 28px; font-weight: 900; color: var(--accent); }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  tr:hover td { background: #111; }
+  .checkbox { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+  /* Tags */
+  .tag {
+    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600; border: 1px solid var(--border);
+  }
+  .tag.green { background: rgba(74,222,128,0.12); color: var(--green); border-color: rgba(74,222,128,0.3); }
+  .tag.red { background: rgba(255,77,77,0.12); color: var(--red); border-color: rgba(255,77,77,0.3); }
+  .tag.blue { background: rgba(88,166,255,0.12); color: var(--blue); border-color: rgba(88,166,255,0.3); }
+  .tag.purple { background: rgba(167,139,250,0.12); color: var(--purple); border-color: rgba(167,139,250,0.3); }
+  .tag.yellow { background: rgba(250,204,21,0.12); color: var(--yellow); border-color: rgba(250,204,21,0.3); }
+  .tag.gray { background: rgba(136,136,136,0.12); color: var(--muted); border-color: rgba(136,136,136,0.3); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .tab {
+    padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+    border-bottom: 2px solid transparent; color: var(--muted);
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Progress */
+  .progress-bar { height: 6px; background: #1f1f1f; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+
+  /* Timeline */
+  .timeline { border-left: 2px solid var(--border); padding-left: 16px; margin: 8px 0; }
+  .timeline-item { position: relative; padding: 4px 0; font-size: 12px; }
+  .timeline-item::before {
+    content: ''; position: absolute; left: -21px; top: 8px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--border); border: 2px solid var(--panel);
+  }
+  .timeline-item.done::before { background: var(--green); }
+  .timeline-item.active::before { background: var(--accent); }
+  .timeline-item.error::before { background: var(--red); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
+    align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 24px; min-width: 480px; max-width: 600px; max-height: 80vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Toast */
+  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    animation: slideIn 0.2s;
+  }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* Stepper */
+  .stepper { display: flex; gap: 0; margin-bottom: 20px; }
+  .step {
+    flex: 1; padding: 10px; text-align: center; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border); color: var(--muted); background: var(--bg);
+  }
+  .step.active { color: var(--accent); border-color: var(--accent); background: #1a1a1a; }
+  .step.done { color: var(--green); border-color: rgba(74,222,128,0.3); background: rgba(74,222,128,0.05); }
+
+  /* Boundary callout */
+  .boundary {
+    border-left: 3px solid var(--red); padding: 10px 14px;
+    background: rgba(255,77,77,0.06); border-radius: 0 6px 6px 0;
+    margin: 12px 0; font-size: 13px;
+  }
+  .boundary.blue { border-left-color: var(--blue); background: rgba(88,166,255,0.06); }
+  .boundary.green { border-left-color: var(--green); background: rgba(74,222,128,0.06); }
+  .boundary-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+
+  /* Hidden */
+  .hidden { display: none !important; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>mail-pilot</h1>
+    <p>AI 邮件工作台 · 原型演示</p>
+    <div class="form-group">
+      <label>用户名</label>
+      <input class="form-input" id="login-user" value="admin" />
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input class="form-input" type="password" id="login-pass" value="admin" />
+    </div>
+    <button class="btn primary" style="width:100%;padding:10px;" onclick="doLogin()">登 录</button>
+    <p style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center;">演示账号：admin / admin</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">M</div>
+      <span>mail-pilot</span>
+    </div>
+    <div class="nav">
+      <div class="nav-section">主要</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <span class="icon">◉</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="contacts" onclick="navigate('contacts')">
+        <span class="icon">☺</span> 联系人
+      </div>
+      <div class="nav-item" data-page="templates" onclick="navigate('templates')">
+        <span class="icon">✎</span> 模板
+      </div>
+      <div class="nav-item" data-page="campaigns" onclick="navigate('campaigns')">
+        <span class="icon">▶</span> 发送活动
+      </div>
+      <div class="nav-item" data-page="inbox" onclick="navigate('inbox')">
+        <span class="icon">↙</span> 收件箱
+      </div>
+      <div class="nav-section">系统</div>
+      <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+        <span class="icon">⚙</span> 设置
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <span id="user-display">admin</span>
+      <span style="cursor:pointer;color:var(--red);" onclick="doLogout()">退出</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div class="topbar-actions">
+        <span style="font-size:12px;color:var(--muted);" id="topbar-subtitle"></span>
+        <button class="btn sm primary" id="topbar-action" onclick="handleTopbarAction()" style="display:none;">新建</button>
+      </div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// ==================== STATE ====================
+const state = {
+  currentPage: 'dashboard',
+  user: null,
+  contacts: [
+    { id: 1, name: '张三', email: 'zhangsan@example.com', status: 'active', tags: ['订阅用户'], lastEmailAt: '2026-09-01' },
+    { id: 2, name: '李四', email: 'lisi@example.com', status: 'active', tags: ['活动'], lastEmailAt: null },
+    { id: 3, name: '王五', email: 'wangwu@example.com', status: 'unsubscribed', tags: ['客户'], lastEmailAt: '2026-08-28' },
+    { id: 4, name: '赵六', email: 'zhaoliu@example.com', status: 'bounced', tags: ['客户'], lastEmailAt: '2026-08-20' },
+    { id: 5, name: '孙七', email: 'sunqi@example.com', status: 'active', tags: ['订阅用户'], lastEmailAt: null },
+  ],
+  templates: [
+    { id: 1, name: '欢迎邮件', subject: '欢迎加入 {{name}}', mode: 'rich', body: '<p>Hi {{name}},</p><p>感谢订阅……</p>', variables: ['name'] },
+    { id: 2, name: '活动通知', subject: '下周活动邀请', mode: 'markdown', body: '# 活动邀请\n\nHi {{name}}，\n\n这周我们有新活动……', variables: ['name'] },
+  ],
+  campaigns: [
+    { id: 1, name: '9月活动通知', status: 'completed', subject: '下周活动邀请', channel: 'Resend', sent: 1200, delivered: 1180, opened: 450, bounced: 15, complained: 2, createdAt: '2026-09-01', progress: 100 },
+    { id: 2, name: '产品更新 v2.0', status: 'sending', subject: 'v2.0 新功能发布', channel: 'SMTP', sent: 840, delivered: 820, opened: 310, bounced: 18, complained: 2, createdAt: '2026-09-02', progress: 68 },
+    { id: 3, name: '8月月报', status: 'draft', subject: '8月月报', channel: null, sent: 0, delivered: 0, opened: 0, bounced: 0, complained: 0, createdAt: '2026-08-30', progress: 0 },
+  ],
+  channels: [
+    { id: 1, kind: 'Resend', name: '主域名', status: 'ok', isDefault: true },
+    { id: 2, kind: 'SMTP/IMAP', name: 'Gmail', status: 'ok', isDefault: false },
+  ],
+  aiConfigs: [
+    { id: 1, name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat', isActive: true, lastTestOk: true },
+    { id: 2, name: 'Ollama 本地', baseUrl: 'http://localhost:11434', model: 'qwen2.5:7b', isActive: false, lastTestOk: null },
+  ],
+  messages: [
+    { id: 1, contactId: 1, direction: 'inbound', from: 'zhangsan@example.com', to: 'me', subject: 'Re: 下周活动确认', snippet: '好的，我参加……', receivedAt: '2026-09-02 10:30', isRead: false, isArchived: false },
+    { id: 2, contactId: 1, direction: 'outbound', from: 'me', to: 'zhangsan@example.com', subject: '下周活动确认', snippet: '您好，想确认您是否参加……', receivedAt: '2026-09-01 15:00', isRead: true, isArchived: false },
+    { id: 3, contactId: 2, direction: 'inbound', from: 'lisi@example.com', to: 'me', subject: '发票问题', snippet: '请问发票怎么开……', receivedAt: '2026-09-01 09:00', isRead: false, isArchived: false },
+    { id: 4, contactId: 3, direction: 'inbound', from: 'wangwu@example.com', to: 'me', subject: '合作意向', snippet: '我们有一个合作项目……', receivedAt: '2026-08-31 14:00', isRead: true, isArchived: true },
+  ],
+  selectedContactIds: new Set(),
+  selectedMessageIds: new Set(),
+  editorMode: 'rich', // rich | markdown | html
+  campaignStep: 1, // 1 | 2 | 3
+  tempCampaign: null,
+};
+
+// ==================== NAVIGATION ====================
+function navigate(page) {
+  state.currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
+  const titles = {
+    dashboard: 'Dashboard', contacts: '联系人', templates: '模板',
+    campaigns: '发送活动', inbox: '收件箱', settings: '设置'
+  };
+  document.getElementById('page-title').textContent = titles[page] || page;
+  render();
+}
+
+function render() {
+  const el = document.getElementById('content');
+  el.innerHTML = '';
+  const renderers = {
+    dashboard: renderDashboard, contacts: renderContacts, templates: renderTemplates,
+    campaigns: renderCampaigns, inbox: renderInbox, settings: renderSettings
+  };
+  const fn = renderers[state.currentPage];
+  if (fn) fn(el);
+  // Update topbar action
+  const actionBtn = document.getElementById('topbar-action');
+  const showAction = ['contacts', 'templates', 'campaigns'].includes(state.currentPage);
+  actionBtn.style.display = showAction ? 'inline-flex' : 'none';
+  if (state.currentPage === 'contacts') { actionBtn.textContent = '导入联系人'; actionBtn.onclick = () => openImportModal(); }
+  else if (state.currentPage === 'templates') { actionBtn.textContent = '新建模板'; actionBtn.onclick = () => openTemplateModal(); }
+  else if (state.currentPage === 'campaigns') { actionBtn.textContent = '新建活动'; actionBtn.onclick = () => openCampaignModal(); }
+}
+
+// ==================== LOGIN ====================
+function doLogin() {
+  const u = document.getElementById('login-user').value;
+  const p = document.getElementById('login-pass').value;
+  if (u === 'admin' && p === 'admin') {
+    state.user = { username: 'admin' };
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    document.getElementById('user-display').textContent = u;
+    navigate('dashboard');
+    showToast('登录成功', 'green');
+  } else {
+    showToast('用户名或密码错误', 'red');
+  }
+}
+function doLogout() {
+  state.user = null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard(el) {
+  const totalContacts = state.contacts.length;
+  const activeContacts = state.contacts.filter(c => c.status === 'active').length;
+  const totalSent = state.campaigns.reduce((s, c) => s + c.sent, 0);
+  const totalDelivered = state.campaigns.reduce((s, c) => s + c.delivered, 0);
+  const deliveryRate = totalSent > 0 ? Math.round(totalDelivered / totalSent * 100) : 0;
+  const totalOpened = state.campaigns.reduce((s, c) => s + c.opened, 0);
+  const openRate = totalDelivered > 0 ? Math.round(totalOpened / totalDelivered * 100) : 0;
+
+  el.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num">${totalContacts}</div><div class="stat-label">联系人</div></div>
+      <div class="stat-card"><div class="stat-num">${activeContacts}</div><div class="stat-label">活跃联系人</div></div>
+      <div class="stat-card"><div class="stat-num">${totalSent}</div><div class="stat-label">已发送</div></div>
+      <div class="stat-card"><div class="stat-num">${deliveryRate}%</div><div class="stat-label">送达率</div></div>
+      <div class="stat-card"><div class="stat-num">${openRate}%</div><div class="stat-label">打开率</div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">最近活动</div>
+      <table>
+        <tr><th>活动名称</th><th>状态</th><th>发送数</th><th>送达</th><th>打开</th><th>退信</th><th>投诉</th><th>创建时间</th></tr>
+        ${state.campaigns.map(c => `
+          <tr style="cursor:pointer;" onclick="navigate('campaigns');setTimeout(()=>showCampaignDetail(${c.id}),50)">
+            <td><strong>${c.name}</strong></td>
+            <td><span class="tag ${c.status==='completed'?'green':c.status==='sending'?'blue':c.status==='draft'?'gray':'yellow'}">${c.status}</span></td>
+            <td>${c.sent}</td><td>${c.delivered}</td><td>${c.opened}</td><td>${c.bounced}</td><td>${c.complained}</td>
+            <td style="color:var(--muted);">${c.createdAt}</td>
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">快速操作</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn primary" onclick="navigate('contacts')">导入联系人</button>
+        <button class="btn" onclick="navigate('templates')">新建模板</button>
+        <button class="btn" onclick="navigate('campaigns')">新建活动</button>
+        <button class="btn" onclick="navigate('settings')">配置渠道</button>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== CONTACTS ====================
+function renderContacts(el) {
+  const filter = document.getElementById('contact-filter')?.value || 'all';
+  const search = document.getElementById('contact-search')?.value || '';
+  let list = state.contacts;
+  if (filter !== 'all') list = list.filter(c => c.status === filter);
+  if (search) list = list.filter(c => c.name.includes(search) || c.email.includes(search));
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input class="form-input" id="contact-search" placeholder="搜索姓名或邮箱……" value="${search}" oninput="render()" style="max-width:240px;" />
+        <select class="form-input" id="contact-filter" onchange="render()" style="max-width:140px;">
+          <option value="all">全部状态</option>
+          <option value="active">活跃</option>
+          <option value="unsubscribed">退订</option>
+          <option value="bounced">退信</option>
+          <option value="complained">投诉</option>
+        </select>
+        <div style="flex:1;"></div>
+        <button class="btn sm" onclick="batchAction('tag')">批量打标</button>
+        <button class="btn sm" onclick="batchAction('export')">导出</button>
+        <button class="btn sm danger" onclick="batchAction('delete')">删除</button>
+      </div>
+    </div>
+    <div class="card">
+      <table>
+        <tr><th><input type="checkbox" class="checkbox" onchange="toggleAllContacts(this)" /></th><th>姓名</th><th>邮箱</th><th>状态</th><th>标签</th><th>最后联系</th><th>操作</th></tr>
+        ${list.map(c => `
+          <tr>
+            <td><input type="checkbox" class="checkbox" data-id="${c.id}" ${state.selectedContactIds.has(c.id)?'checked':''} onchange="toggleContact(${c.id})" /></td>
+            <td><strong>${c.name}</strong></td>
+            <td>${c.email}</td>
+            <td><span class="tag ${c.status==='active'?'green':c.status==='unsubscribed'?'yellow':c.status==='bounced'?'red':'red'}">${c.status}</span></td>
+            <td>${c.tags.map(t => `<span class="tag blue">${t}</span>`).join(' ')}</td>
+            <td style="color:var(--muted);font-size:12px;">${c.lastEmailAt || '-'}</td>
+            <td><button class="btn sm" onclick="showContactDetail(${c.id})">详情</button></td>
+          </tr>
+        `).join('') || '<tr><td colspan="7" class="empty">无匹配联系人</td></tr>'}
+      </table>
+    </div>
+  `;
+}
+
+function toggleContact(id) {
+  if (state.selectedContactIds.has(id)) state.selectedContactIds.delete(id);
+  else state.selectedContactIds.add(id);
+}
+function toggleAllContacts(cb) {
+  const checkboxes = document.querySelectorAll('#content .checkbox[data-id]');
+  checkboxes.forEach(cb2 => {
+    const id = parseInt(cb2.dataset.id);
+    cb2.checked = cb.checked;
+    if (cb.checked) state.selectedContactIds.add(id);
+    else state.selectedContactIds.delete(id);
+  });
+}
+function batchAction(action) {
+  if (state.selectedContactIds.size === 0) { showToast('请先选择联系人', 'yellow'); return; }
+  showToast(`已对 ${state.selectedContactIds.size} 个联系人执行"${action}"`, 'blue');
+  state.selectedContactIds.clear();
+  render();
+}
+
+function showContactDetail(id) {
+  const c = state.contacts.find(x => x.id === id);
+  if (!c) return;
+  const msgs = state.messages.filter(m => m.contactId === id);
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">联系人详情 · ${c.name}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">
+      <div><strong>邮箱：</strong>${c.email}</div>
+      <div><strong>状态：</strong><span class="tag ${c.status==='active'?'green':'red'}">${c.status}</span></div>
+      <div><strong>标签：</strong>${c.tags.map(t=>`<span class="tag blue">${t}</span>`).join(' ')}</div>
+      <div><strong>最后联系：</strong>${c.lastEmailAt || '-'}</div>
+    </div>
+    <div style="margin-top:16px;font-size:13px;font-weight:700;">往来会话</div>
+    <div class="timeline" style="margin-top:8px;">
+      ${msgs.length ? msgs.map(m => `
+        <div class="timeline-item ${m.direction==='inbound'?'':'done'}">
+          <strong>${m.direction==='inbound'?'收':'发'}</strong> · ${m.receivedAt}<br/>
+          <span style="color:var(--muted);">${m.subject}</span><br/>
+          <span style="color:var(--muted);font-size:12px;">${m.snippet}</span>
+        </div>
+      `).join('') : '<div style="color:var(--muted);font-size:13px;">暂无往来</div>'}
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">关闭</button></div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+// ==================== IMPORT MODAL ====================
+function openImportModal() {
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">导入联系人</div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchImportTab(this,'file')">上传文件</div>
+      <div class="tab" onclick="switchImportTab(this,'paste')">粘贴文本</div>
+    </div>
+    <div id="import-file">
+      <div class="form-group">
+        <label>选择文件（CSV / XLSX / JSON / TXT）</label>
+        <input class="form-input" type="file" id="import-file-input" />
+      </div>
+    </div>
+    <div id="import-paste" class="hidden">
+      <div class="form-group">
+        <label>粘贴联系人（每行一个邮箱，或 CSV/JSON）</label>
+        <textarea class="form-input" rows="6" id="import-paste-text" style="font-family:monospace;font-size:12px;"></textarea>
+      </div>
+    </div>
+    <div class="boundary blue">
+      <div class="boundary-title">自动排除</div>
+      退订（unsubscribed）/ 退信（bounced）/ 被标垃圾（complained）地址自动求差，被排除的地址有记录可查。
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="doImport()">预览导入</button>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function switchImportTab(tabEl, mode) {
+  tabEl.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  document.getElementById('import-file').classList.toggle('hidden', mode !== 'file');
+  document.getElementById('import-paste').classList.toggle('hidden', mode !== 'paste');
+}
+
+function doImport() {
+  const pasteText = document.getElementById('import-paste-text')?.value || '';
+  const lines = pasteText.split('\n').filter(l => l.trim()).map(l => l.trim());
+  if (lines.length === 0) { showToast('请输入至少一个邮箱', 'yellow'); return; }
+  // Simulate import with exclusions
+  const excluded = ['wangwu@example.com']; // unsubscribed/bounced
+  const added = lines.filter(l => !excluded.includes(l) && !state.contacts.some(c => c.email === l));
+  const skipped = lines.filter(l => excluded.includes(l) || state.contacts.some(c => c.email === l));
+  showToast(`导入完成：新增 ${added.length}，跳过 ${skipped.length}`, 'green');
+  added.forEach((email, i) => {
+    state.contacts.push({
+      id: Date.now() + i, name: email.split('@')[0], email, status: 'active',
+      tags: ['导入'], lastEmailAt: null
+    });
+  });
+  closeModal();
+  if (state.currentPage === 'contacts') render();
+}
+
+// ==================== TEMPLATES ====================
+function renderTemplates(el) {
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">
+      ${state.templates.map(t => `
+        <div class="card" style="cursor:pointer;" onclick="editTemplate(${t.id})">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+            <strong style="font-size:15px;">${t.name}</strong>
+            <span class="tag ${t.mode==='rich'?'purple':t.mode==='markdown'?'blue':'yellow'}">${t.mode}</span>
+          </div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">${t.subject}</div>
+          <div style="font-size:12px;color:var(--muted);">变量：${t.variables.map(v=>'{{'+v+'}}').join(' ')}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function editTemplate(id) {
+  const t = state.templates.find(x => x.id === id);
+  if (!t) return;
+  openTemplateModal(t);
+}
+
+function openTemplateModal(template = null) {
+  const isEdit = !!template;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">${isEdit ? '编辑' : '新建'}模板</div>
+    <div class="form-group">
+      <label>模板名称</label>
+      <input class="form-input" id="tpl-name" value="${isEdit?template.name:''}" />
+    </div>
+    <div class="form-group">
+      <label>主题</label>
+      <input class="form-input" id="tpl-subject" value="${isEdit?template.subject:''}" placeholder="支持 {{name}} 等变量" />
+    </div>
+    <div class="form-group">
+      <label>编辑模式</label>
+      <div class="tabs" style="margin-bottom:8px;">
+        <div class="tab ${state.editorMode==='rich'?'active':''}" onclick="switchEditorMode(this,'rich')">富文本</div>
+        <div class="tab ${state.editorMode==='markdown'?'active':''}" onclick="switchEditorMode(this,'markdown')">Markdown</div>
+        <div class="tab ${state.editorMode==='html'?'active':''}" onclick="switchEditorMode(this,'html')">HTML</div>
+      </div>
+      <textarea class="form-input" id="tpl-body" rows="8" style="font-family:${state.editorMode==='markdown'?'monospace':'inherit'};font-size:13px;">${isEdit?template.body:''}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn primary sm" onclick="aiGenerate()">✨ AI 代写</button>
+      <button class="btn sm" onclick="showToast('AI 改写：请输入指令','blue')">AI 改写</button>
+      <button class="btn sm" onclick="showToast('体检评分：72 分，建议优化触发词','yellow')">垃圾箱体检</button>
+    </div>
+    <div class="boundary blue" style="margin-top:12px;">
+      <div class="boundary-title">变量</div>
+      支持 <code>{{name}}</code>、<code>{{email}}</code> 等变量，渲染时自动替换。变量由渲染器自动扫描提取。
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveTemplate(${isEdit?template.id:'null'})">保存</button>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function switchEditorMode(tabEl, mode) {
+  tabEl.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  state.editorMode = mode;
+  const bodyEl = document.getElementById('tpl-body');
+  if (bodyEl) bodyEl.style.fontFamily = mode === 'markdown' ? 'monospace' : 'inherit';
+}
+
+function aiGenerate() {
+  const subject = document.getElementById('tpl-subject');
+  const body = document.getElementById('tpl-body');
+  if (subject) subject.value = '欢迎加入 {{name}}';
+  if (body) body.value = '<p>Hi {{name}},</p><p>感谢您的订阅！我们很高兴您加入我们。</p><p>有任何问题随时回复。</p>';
+  showToast('AI 已生成模板内容', 'green');
+}
+
+function saveTemplate(id) {
+  const name = document.getElementById('tpl-name').value;
+  const subject = document.getElementById('tpl-subject').value;
+  const body = document.getElementById('tpl-body').value;
+  if (!name || !subject) { showToast('请填写名称和主题', 'yellow'); return; }
+  if (id) {
+    const t = state.templates.find(x => x.id === id);
+    if (t) { t.name = name; t.subject = subject; t.body = body; t.mode = state.editorMode; }
+  } else {
+    state.templates.push({ id: Date.now(), name, subject, mode: state.editorMode, body, variables: ['name'] });
+  }
+  showToast('模板已保存', 'green');
+  closeModal();
+  render();
+}
+
+// ==================== CAMPAIGNS ====================
+function renderCampaigns(el) {
+  if (state.currentCampaignId) {
+    renderCampaignDetail(el, state.currentCampaignId);
+    return;
+  }
+  el.innerHTML = `
+    <div class="card">
+      <table>
+        <tr><th>活动名称</th><th>状态</th><th>渠道</th><th>发送</th><th>送达</th><th>打开</th><th>退信</th><th>投诉</th><th>进度</th><th>操作</th></tr>
+        ${state.campaigns.map(c => `
+          <tr>
+            <td><strong>${c.name}</strong></td>
+            <td><span class="tag ${c.status==='completed'?'green':c.status==='sending'?'blue':c.status==='draft'?'gray':'yellow'}">${c.status}</span></td>
+            <td>${c.channel || '-'}</td>
+            <td>${c.sent}</td><td>${c.delivered}</td><td>${c.opened}</td><td>${c.bounced}</td><td>${c.complained}</td>
+            <td style="min-width:100px;">
+              <div class="progress-bar"><div class="progress-fill" style="width:${c.progress}%;"></div></div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">${c.progress}%</div>
+            </td>
+            <td><button class="btn sm" onclick="event.stopPropagation();showCampaignDetail(${c.id})">查看</button></td>
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+  `;
+}
+
+function showCampaignDetail(id) {
+  state.currentCampaignId = id;
+  state.campaignStep = 1;
+  navigate('campaigns');
+}
+
+function renderCampaignDetail(el, id) {
+  const c = state.campaigns.find(x => x.id === id);
+  if (!c) return;
+  const steps = ['编辑', '确认计划', '进度'];
+  el.innerHTML = `
+    <button class="btn ghost sm" onclick="state.currentCampaignId=null;render();" style="margin-bottom:12px;">← 返回列表</button>
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div><strong style="font-size:16px;">${c.name}</strong> <span class="tag ${c.status==='completed'?'green':c.status==='sending'?'blue':'gray'}">${c.status}</span></div>
+        <div style="display:flex;gap:6px;">
+          ${c.status==='sending'?'<button class="btn sm" onclick="pauseCampaign()">暂停</button>':''}
+          ${c.status==='paused'?'<button class="btn sm primary" onclick="resumeCampaign()">继续</button>':''}
+          ${['draft','planned','paused'].includes(c.status)?'<button class="btn sm danger" onclick="cancelCampaign()">取消</button>':''}
+        </div>
+      </div>
+      <div class="stepper">
+        ${steps.map((s,i) => `<div class="step ${i+1 < state.campaignStep ? 'done' : i+1 === state.campaignStep ? 'active' : ''}">${i+1}. ${s}</div>`).join('')}
+      </div>
+    </div>
+    <div id="campaign-step-content"></div>
+  `;
+  renderCampaignStep(id);
+}
+
+function renderCampaignStep(id) {
+  const c = state.campaigns.find(x => x.id === id);
+  const container = document.getElementById('campaign-step-content');
+  if (!container || !c) return;
+
+  if (state.campaignStep === 1) {
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-title">步骤 ①：编辑收件人 / 内容 / 渠道</div>
+        <div class="form-group">
+          <label>活动名称</label>
+          <input class="form-input" id="camp-name" value="${c.name}" />
+        </div>
+        <div class="form-group">
+          <label>邮件主题</label>
+          <input class="form-input" id="camp-subject" value="${c.subject}" />
+        </div>
+        <div class="form-group">
+          <label>发送渠道</label>
+          <select class="form-input" id="camp-channel">
+            ${state.channels.map(ch => `<option value="${ch.name}" ${c.channel===ch.name?'selected':''}>${ch.kind} - ${ch.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>收件人（共 ${state.contacts.filter(x=>x.status==='active').length} 位活跃联系人）</label>
+          <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;">
+            ${state.contacts.filter(x=>x.status==='active').map(ct => `
+              <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer;">
+                <input type="checkbox" class="checkbox" checked /> ${ct.name} &lt;${ct.email}&gt;
+              </label>
+            `).join('')}
+          </div>
+        </div>
+        <button class="btn primary" onclick="state.campaignStep=2;renderCampaignStep(${c.id});">下一步：确认计划 →</button>
+      </div>
+    `;
+  } else if (state.campaignStep === 2) {
+    const activeCount = state.contacts.filter(x => x.status === 'active').length;
+    const excludedCount = state.contacts.length - activeCount;
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-title">步骤 ②：发送计划确认</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;">
+          <div>
+            <p><strong>收件人数：</strong>${activeCount}</p>
+            <p><strong>渠道：</strong>${c.channel || '未选择'}</p>
+            <p><strong>批次：</strong>每批 50 / 间隔 60s</p>
+            <p><strong>预计耗时：</strong>~${Math.ceil(activeCount/50)} 分钟</p>
+          </div>
+          <div>
+            <p><strong>模板：</strong>${c.subject}</p>
+            <p><strong>限速：</strong>不可关闭</p>
+            <p><strong>重试：</strong>指数退避，最多 3 次</p>
+          </div>
+        </div>
+        ${excludedCount > 0 ? `<div class="boundary" style="margin-top:12px;"><div class="boundary-title">将被排除</div>${excludedCount} 人（退订/退信/重复地址）</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button class="btn" onclick="state.campaignStep=1;renderCampaignStep(${c.id});">← 返回编辑</button>
+          <button class="btn primary" onclick="confirmCampaign(${c.id})">确认发送</button>
+        </div>
+      </div>
+    `;
+  } else if (state.campaignStep === 3) {
+    container.innerHTML = `
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="tag green">sent ${c.sent}</span>
+            <span class="tag blue">delivered ${c.delivered}</span>
+            <span class="tag purple">opened ${c.opened}</span>
+            <span class="tag red">bounced ${c.bounced}</span>
+            <span class="tag yellow">complained ${c.complained}</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn sm primary" onclick="showToast('AI 体检：72 分，建议优化触发词','blue')">AI 体检</button>
+          </div>
+        </div>
+        <div class="progress-bar" style="margin-bottom:8px;">
+          <div class="progress-fill" style="width:${c.progress}%;"></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">进度：${c.progress}%</div>
+      </div>
+      <div class="card">
+        <div class="card-title">逐收件人状态时间线</div>
+        <div class="timeline">
+          <div class="timeline-item done"><strong>sent</strong> → 2026-09-02 10:00（840 人）</div>
+          <div class="timeline-item done"><strong>delivered</strong> → 2026-09-02 10:00（820 人）</div>
+          <div class="timeline-item active"><strong>opened</strong> → 2026-09-02 10:05（310 人）</div>
+          <div class="timeline-item error"><strong>bounced</strong> → 2026-09-02 10:01（18 人）</div>
+        </div>
+        <div class="boundary" style="margin-top:12px;">
+          <div class="boundary-title">Resend vs SMTP</div>
+          Resend：webhook 实时回传 delivered/opened/bounced/complained。<br/>
+          SMTP：无 webhook，只能扫退信箱拿到 bounced/complained；opened 不可见。
+        </div>
+      </div>
+    `;
+  }
+}
+
+function pauseCampaign() {
+  const c = state.campaigns.find(x => x.id === state.currentCampaignId);
+  if (c) { c.status = 'paused'; showToast('活动已暂停', 'yellow'); render(); }
+}
+function resumeCampaign() {
+  const c = state.campaigns.find(x => x.id === state.currentCampaignId);
+  if (c) { c.status = 'sending'; showToast('活动已继续', 'green'); render(); }
+}
+function cancelCampaign() {
+  const c = state.campaigns.find(x => x.id === state.currentCampaignId);
+  if (c) { c.status = 'cancelled'; showToast('活动已取消', 'red'); state.currentCampaignId = null; render(); }
+}
+function confirmCampaign(id) {
+  const c = state.campaigns.find(x => x.id === id);
+  if (c) {
+    c.status = 'sending';
+    c.channel = document.getElementById('camp-channel')?.value || c.channel;
+    c.name = document.getElementById('camp-name')?.value || c.name;
+    c.subject = document.getElementById('camp-subject')?.value || c.subject;
+    state.campaignStep = 3;
+    showToast('发送计划已确认，开始发送', 'green');
+    renderCampaignStep(id);
+    // Simulate progress
+    simulateProgress(id);
+  }
+}
+
+function simulateProgress(id) {
+  const c = state.campaigns.find(x => x.id === id);
+  if (!c || c.status !== 'sending') return;
+  const interval = setInterval(() => {
+    if (c.progress >= 100 || c.status !== 'sending') { clearInterval(interval); return; }
+    c.progress = Math.min(100, c.progress + Math.floor(Math.random() * 8 + 2));
+    c.sent = Math.floor(c.progress / 100 * 1200);
+    c.delivered = Math.floor(c.sent * 0.98);
+    c.opened = Math.floor(c.delivered * 0.38);
+    c.bounced = Math.floor(c.sent * 0.015);
+    c.complained = Math.floor(c.sent * 0.0017);
+    if (c.progress >= 100) { c.status = 'completed'; clearInterval(interval); showToast('发送完成', 'green'); }
+    if (state.currentPage === 'campaigns' && state.currentCampaignId === id) renderCampaignStep(id);
+  }, 800);
+}
+
+function openCampaignModal() {
+  state.tempCampaign = { name: '', subject: '', channel: state.channels.find(ch => ch.isDefault)?.name || '' };
+  state.campaignStep = 1;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">新建发送活动</div>
+    <div id="campaign-wizard"></div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+  renderCampaignWizard();
+}
+
+function renderCampaignWizard() {
+  const el = document.getElementById('campaign-wizard');
+  if (!el || !state.tempCampaign) return;
+  const c = state.tempCampaign;
+  const steps = ['编辑', '确认计划'];
+  el.innerHTML = `
+    <div class="stepper">
+      ${steps.map((s,i) => `<div class="step ${i+1 < state.campaignStep ? 'done' : i+1 === state.campaignStep ? 'active' : ''}">${i+1}. ${s}</div>`).join('')}
+    </div>
+    ${state.campaignStep === 1 ? `
+      <div class="form-group"><label>活动名称</label><input class="form-input" id="new-camp-name" value="${c.name}" /></div>
+      <div class="form-group"><label>邮件主题</label><input class="form-input" id="new-camp-subject" value="${c.subject}" /></div>
+      <div class="form-group">
+        <label>发送渠道</label>
+        <select class="form-input" id="new-camp-channel">
+          ${state.channels.map(ch => `<option value="${ch.name}" ${c.channel===ch.name?'selected':''}>${ch.kind} - ${ch.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>选择模板</label>
+        <select class="form-input" id="new-camp-template">
+          <option value="">-- 选择模板 --</option>
+          ${state.templates.map(t => `<option value="${t.id}">${t.name}（${t.subject}）</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn primary" onclick="state.campaignStep=2;renderCampaignWizard();">下一步</button>
+      </div>
+    ` : `
+      <div style="font-size:13px;">
+        <p><strong>收件人数：</strong>${state.contacts.filter(x=>x.status==='active').length}</p>
+        <p><strong>渠道：</strong>${c.channel}</p>
+        <p><strong>预计耗时：</strong>~25 分钟</p>
+      </div>
+      <div class="boundary" style="margin-top:12px;">
+        <div class="boundary-title">将被排除</div>
+        2 人（退订/退信/重复地址）
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button class="btn" onclick="state.campaignStep=1;renderCampaignWizard();">返回</button>
+        <button class="btn primary" onclick="createCampaign()">确认创建</button>
+      </div>
+    `}
+  `;
+}
+
+function createCampaign() {
+  const name = document.getElementById('new-camp-name')?.value || '未命名活动';
+  const subject = document.getElementById('new-camp-subject')?.value || '';
+  const channel = document.getElementById('new-camp-channel')?.value || '';
+  state.campaigns.unshift({
+    id: Date.now(), name, subject, status: 'planned', channel,
+    sent: 0, delivered: 0, opened: 0, bounced: 0, complained: 0,
+    createdAt: new Date().toISOString().slice(0,10), progress: 0
+  });
+  showToast('活动已创建', 'green');
+  closeModal();
+  render();
+}
+
+// ==================== INBOX ====================
+function renderInbox(el) {
+  const filter = document.getElementById('inbox-filter')?.value || 'all';
+  let list = state.messages;
+  if (filter === 'unread') list = list.filter(m => !m.isRead);
+  else if (filter === 'archived') list = list.filter(m => m.isArchived);
+  else if (filter === 'read') list = list.filter(m => m.isRead && !m.isArchived);
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="tabs" style="border-bottom:none;margin-bottom:0;">
+          <div class="tab ${filter==='all'?'active':''}" onclick="setInboxFilter('all')">全部</div>
+          <div class="tab ${filter==='unread'?'active':''}" onclick="setInboxFilter('unread')">未读</div>
+          <div class="tab ${filter==='read'?'active':''}" onclick="setInboxFilter('read')">已读</div>
+          <div class="tab ${filter==='archived'?'active':''}" onclick="setInboxFilter('archived')">已归档</div>
+        </div>
+        <div style="flex:1;"></div>
+        <button class="btn sm" onclick="batchInboxAction('read')">批量已读</button>
+        <button class="btn sm" onclick="batchInboxAction('archive')">归档</button>
+        <button class="btn sm" onclick="batchInboxAction('summary')">AI 摘要</button>
+        <button class="btn sm primary" onclick="batchInboxAction('reply')">批量回复</button>
+      </div>
+    </div>
+    <div class="card">
+      <table>
+        <tr><th><input type="checkbox" class="checkbox" onchange="toggleAllMessages(this)" /></th><th>状态</th><th>主题</th><th>发件人</th><th>时间</th></tr>
+        ${list.map(m => `
+          <tr style="background:${m.isRead?'transparent':'rgba(88,166,255,0.04)'};cursor:pointer;" onclick="showMessageDetail(${m.id})">
+            <td><input type="checkbox" class="checkbox" data-id="${m.id}" ${state.selectedMessageIds.has(m.id)?'checked':''} onclick="event.stopPropagation();toggleMessage(${m.id})" /></td>
+            <td>${m.isRead ? '<span style="color:var(--muted);">●</span>' : '<span style="color:var(--blue);font-weight:700;">●</span>'}</td>
+            <td><strong>${m.isRead?'':'style="font-weight:700;"'}${m.subject}</strong></td>
+            <td style="color:var(--muted);">${m.from}</td>
+            <td style="color:var(--muted);font-size:12px;">${m.receivedAt}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="5" class="empty">暂无邮件</td></tr>'}
+      </table>
+    </div>
+  `;
+}
+
+function setInboxFilter(f) {
+  const sel = document.getElementById('inbox-filter');
+  if (sel) sel.value = f;
+  render();
+}
+
+function toggleMessage(id) {
+  if (state.selectedMessageIds.has(id)) state.selectedMessageIds.delete(id);
+  else state.selectedMessageIds.add(id);
+}
+function toggleAllMessages(cb) {
+  document.querySelectorAll('#content .checkbox[data-id]').forEach(cb2 => {
+    const id = parseInt(cb2.dataset.id);
+    cb2.checked = cb.checked;
+    if (cb.checked) state.selectedMessageIds.add(id);
+    else state.selectedMessageIds.delete(id);
+  });
+}
+function batchInboxAction(action) {
+  if (state.selectedMessageIds.size === 0 && action !== 'summary') { showToast('请先选择邮件', 'yellow'); return; }
+  const count = state.selectedMessageIds.size || state.messages.filter(m => !m.isRead).length;
+  if (action === 'read') {
+    state.messages.forEach(m => { if (state.selectedMessageIds.has(m.id) || !m.isRead) m.isRead = true; });
+    showToast(`已标为已读（${count} 封）`, 'green');
+  } else if (action === 'archive') {
+    state.messages.forEach(m => { if (state.selectedMessageIds.has(m.id)) m.isArchived = true; });
+    showToast(`已归档（${count} 封）`, 'blue');
+  } else if (action === 'summary') {
+    showToast(`AI 会话摘要：${count} 封邮件已生成摘要`, 'purple');
+  } else if (action === 'reply') {
+    showToast(`已为 ${count} 位联系人批量草拟回复`, 'blue');
+  }
+  state.selectedMessageIds.clear();
+  render();
+}
+
+function showMessageDetail(id) {
+  const m = state.messages.find(x => x.id === id);
+  if (!m) return;
+  m.isRead = true;
+  const contact = state.contacts.find(c => c.id === m.contactId);
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">${m.subject}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+      <strong>${m.direction==='inbound'?'收件人':'发件人'}:</strong> ${m.direction==='inbound'?m.from:m.to} &lt;${m.direction==='inbound'?m.to:m.from}&gt;<br/>
+      <strong>时间：</strong>${m.receivedAt}
+    </div>
+    <div class="card" style="background:var(--bg);border:1px solid var(--border);">
+      <div style="font-size:14px;line-height:1.8;">${m.snippet}</div>
+    </div>
+    <div class="boundary blue" style="margin-top:12px;">
+      <div class="boundary-title">AI 操作</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn sm" onclick="showToast('会话摘要已生成','purple')">生成摘要</button>
+        <button class="btn sm primary" onclick="showToast('AI 草拟回复已生成','blue')">草拟回复</button>
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal();render();">关闭</button></div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+// ==================== SETTINGS ====================
+function renderSettings(el) {
+  el.innerHTML = `
+    <div class="tabs">
+      <div class="tab active" onclick="switchSettingsTab(this,'channels')">渠道管理</div>
+      <div class="tab" onclick="switchSettingsTab(this,'ai')">AI 配置</div>
+      <div class="tab" onclick="switchSettingsTab(this,'general')">常规</div>
+    </div>
+    <div id="settings-channels">
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title">渠道列表</div>
+          <button class="btn sm primary" onclick="showToast('添加渠道表单（演示略）','blue')">+ 添加渠道</button>
+        </div>
+        <table>
+          <tr><th>类型</th><th>名称</th><th>状态</th><th>默认</th><th>操作</th></tr>
+          ${state.channels.map(ch => `
+            <tr>
+              <td>${ch.kind}</td><td>${ch.name}</td>
+              <td><span class="tag green">${ch.status}</span></td>
+              <td>${ch.isDefault ? '<span class="tag green">默认</span>' : '-'}</td>
+              <td><button class="btn sm" onclick="testChannel(${ch.id})">测试连接</button></td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+      <div class="boundary blue">
+        <div class="boundary-title">SMTP 渠道测试</div>
+        测试发送到同一账号 / 不计数 / 不走限速。渠道测试发送走测试分支。
+      </div>
+    </div>
+    <div id="settings-ai" class="hidden">
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title">AI 配置</div>
+          <button class="btn sm primary" onclick="showToast('添加 AI 配置（演示略）','blue')">+ 添加</button>
+        </div>
+        <table>
+          <tr><th>名称</th><th>base_url</th><th>模型</th><th>状态</th><th>操作</th></tr>
+          ${state.aiConfigs.map(ai => `
+            <tr>
+              <td>${ai.name}</td><td style="font-family:monospace;font-size:12px;">${ai.baseUrl}</td><td>${ai.model}</td>
+              <td>
+                <span class="tag ${ai.isActive?'green':ai.lastTestOk===false?'red':'gray'}">${ai.isActive?'激活':ai.lastTestOk===false?'失败':'未测'}</span>
+              </td>
+              <td>
+                <button class="btn sm" onclick="testAI(${ai.id})">测试</button>
+                ${!ai.isActive?`<button class="btn sm primary" onclick="activateAI(${ai.id})">激活</button>`:''}
+              </td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+      <div class="boundary">
+        <div class="boundary-title">凭据边界</div>
+        key 由用户在界面录入，存本地 SQLite（随数据卷保存，注意备份与权限）。公网部署必须改掉默认账号密码与 SECRET_KEY。
+      </div>
+    </div>
+    <div id="settings-general" class="hidden">
+      <div class="card">
+        <div class="card-title">常规设置</div>
+        <div class="form-group">
+          <label>发件人名称</label>
+          <input class="form-input" value="mail-pilot" />
+        </div>
+        <div class="form-group">
+          <label>默认渠道</label>
+          <select class="form-input">
+            ${state.channels.map(ch => `<option ${ch.isDefault?'selected':''}>${ch.kind} - ${ch.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>全局发送限速（每分钟）</label>
+          <input class="form-input" type="number" value="60" />
+        </div>
+        <button class="btn primary" onclick="showToast('设置已保存','green')">保存设置</button>
+      </div>
+    </div>
+  `;
+}
+
+function switchSettingsTab(tabEl, tab) {
+  tabEl.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  ['channels','ai','general'].forEach(t => document.getElementById('settings-'+t).classList.toggle('hidden', t!==tab));
+}
+
+function testChannel(id) {
+  const ch = state.channels.find(x => x.id === id);
+  showToast(`正在测试 ${ch.kind} - ${ch.name} 连接……`, 'blue');
+  setTimeout(() => showToast(`${ch.name} 连接成功`, 'green'), 1200);
+}
+function testAI(id) {
+  const ai = state.aiConfigs.find(x => x.id === id);
+  showToast(`正在测试 ${ai.name} 连通性……`, 'blue');
+  setTimeout(() => { ai.lastTestOk = true; showToast(`${ai.name} 测试通过`, 'green'); render(); }, 1200);
+}
+function activateAI(id) {
+  state.aiConfigs.forEach(ai => ai.isActive = (ai.id === id));
+  showToast('AI 配置已激活', 'green');
+  render();
+}
+
+// ==================== MODAL / TOAST ====================
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+function showToast(msg, color = 'blue') {
+  const container = document.getElementById('toasts');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.style.borderLeft = `3px solid var(--${color})`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', () => {
+  // focus login
+  document.getElementById('login-user')?.focus();
+});
+</script>
+
+</body>
+</html>
